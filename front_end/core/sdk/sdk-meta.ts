@@ -491,7 +491,7 @@ Common.Settings.registerSettingExtension({
   settingName: 'breakpoints-active',
   settingType: Common.Settings.SettingType.BOOLEAN,
   storageType: Common.Settings.SettingStorageType.SESSION,
-  defaultValue: true,
+  defaultValue: false,
 });
 
 Common.Settings.registerSettingExtension({
