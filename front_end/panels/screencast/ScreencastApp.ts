@@ -52,7 +52,7 @@ export class ScreencastApp implements Common.App.App,
     this.rootSplitWidget.setVertical(true);
     this.rootSplitWidget.setSecondIsSidebar(true);
     this.rootSplitWidget.show(this.rootView.element);
-    this.rootSplitWidget.hideSidebar();
+    this.rootSplitWidget.hideMain();
 
     this.rootSplitWidget.setSidebarWidget(UI.InspectorView.InspectorView.instance());
     UI.InspectorView.InspectorView.instance().setOwnerSplit(this.rootSplitWidget);
@@ -94,17 +94,16 @@ export class ScreencastApp implements Common.App.App,
   }
 
   private onScreencastEnabledChanged(): void {
-    this.rootSplitWidget?.hideSidebar();
-    // if (!this.rootSplitWidget) {
-    //   return;
-    // }
-    // const enabled = Boolean(this.enabledSetting.get() && this.screencastView);
-    // this.toggleButton.setToggled(enabled);
-    // if (enabled) {
-    //   this.rootSplitWidget.showBoth();
-    // } else {
-    //   this.rootSplitWidget.hideMain();
-    // }
+    if (!this.rootSplitWidget) {
+      return;
+    }
+    const enabled = Boolean(this.enabledSetting.get() && this.screencastView);
+    this.toggleButton.setToggled(enabled);
+    if (enabled) {
+      this.rootSplitWidget.showBoth();
+    } else {
+      this.rootSplitWidget.hideMain();
+    }
   }
 }
 
