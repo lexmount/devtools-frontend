@@ -677,6 +677,13 @@ export class ScreencastView extends UI.Widget.VBox implements SDK.OverlayModel.H
     this.touchInputToggleIcon = this.touchInputToggle.appendChild(IconButton.Icon.create('touch-app'));
     UI.ARIAUtils.setLabel(this.touchInputToggle, i18nString(UIStrings.touchInput));
 
+    // guojinghua@lexmount: add screencast toggle button
+    this.inspectorToggle = this.navigationBar.createChild('button');
+    this.inspectorToggleIcon = this.inspectorToggle.appendChild(IconButton.Icon.create('global'));
+    // TODO(guojinghua): i18n
+    UI.ARIAUtils.setLabel(this.inspectorToggle, 'Toggle inspector view');
+    this.inspectorToggle.addEventListener('click', this.#toggleInspectorView.bind(this), false);
+
     this.navigationProgressBar = new ProgressTracker(
         this.resourceTreeModel, this.networkManager, this.navigationBar.createChild('div', 'progress'));
 
@@ -745,6 +752,18 @@ export class ScreencastView extends UI.Widget.VBox implements SDK.OverlayModel.H
     this.mouseInputToggleIcon.classList.toggle('toggled', this.mouseInputToggle.disabled);
     this.touchInputToggleIcon.classList.toggle('toggled', this.touchInputToggle.disabled);
     this.canvasContainerElement.classList.toggle('touchable', value);
+  }
+
+  // guojinghua@lexmount: click handler for inspector toggle button
+  private inspectorToggle?: HTMLButtonElement;
+  private inspectorToggleIcon?: IconButton.Icon.Icon;
+  async #toggleInspectorView(): Promise<void> {
+    if (!this.inspectorToggle || !this.inspectorToggleIcon) {
+      return;
+    }
+    const {ScreencastApp} = await import('./ScreencastApp.js');
+    ScreencastApp.instance().toggleInspectorView();
+    this.inspectorToggleIcon.classList.toggle('toggled', !this.inspectorToggleIcon.classList.contains('toggled'));
   }
 
   private requestNavigationHistoryEvent(): void {

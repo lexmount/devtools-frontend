@@ -10,6 +10,9 @@ import * as UI from '../../ui/legacy/legacy.js';
 
 import {ScreencastView} from './ScreencastView.js';
 
+// @lexmount
+import {ShowMode} from '../../ui/legacy/SplitWidget.js';
+
 const UIStrings = {
   /**
    * @description Tooltip text that appears when hovering over largeicon phone button in Screencast App of the Remote Devices tab when toggling screencast
@@ -54,6 +57,11 @@ export class ScreencastApp implements Common.App.App,
     this.rootSplitWidget.show(this.rootView.element);
     this.rootSplitWidget.hideMain();
 
+    // guojinghua@lexmount: call hideSidebar by default if screencast is enabled
+    if (this.enabledSetting.get()) {
+      this.rootSplitWidget.hideSidebar();
+    }
+
     this.rootSplitWidget.setSidebarWidget(UI.InspectorView.InspectorView.instance());
     UI.InspectorView.InspectorView.instance().setOwnerSplit(this.rootSplitWidget);
     this.rootView.attachToDocument(document);
@@ -87,6 +95,18 @@ export class ScreencastApp implements Common.App.App,
     this.onScreencastEnabledChanged();
   }
 
+  // guojinghua@lexmount: public method for toggle inspector view
+  toggleInspectorView(): void {
+    if (!this.rootSplitWidget) {
+      return;
+    }
+    if (this.rootSplitWidget.showMode() === ShowMode.ONLY_MAIN) {
+      this.rootSplitWidget.showBoth();
+    } else {
+      this.rootSplitWidget.hideSidebar();
+    }
+  }
+
   private toggleButtonClicked(): void {
     const enabled = this.toggleButton.isToggled();
     this.enabledSetting.set(enabled);
@@ -100,6 +120,11 @@ export class ScreencastApp implements Common.App.App,
     const enabled = Boolean(this.enabledSetting.get() && this.screencastView);
     this.toggleButton.setToggled(enabled);
     if (enabled) {
+      // guojinghua@lexmount: do not show sidebar if it is hidden
+      if (this.rootSplitWidget.showMode() === ShowMode.ONLY_MAIN) {
+        return;
+      }
+
       this.rootSplitWidget.showBoth();
     } else {
       this.rootSplitWidget.hideMain();
