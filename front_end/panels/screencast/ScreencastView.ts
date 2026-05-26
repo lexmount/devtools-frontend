@@ -329,10 +329,31 @@ export class ScreencastView extends UI.Widget.VBox implements SDK.OverlayModel.H
     event.preventDefault();
   }
 
-  private handleKeyEvent(event: KeyboardEvent): void {
+  // guojinghua@lexmount: change to async function
+  private async handleKeyEvent(event: KeyboardEvent): Promise<void> {
     if (this.isGlassPaneActive()) {
       event.consume();
       return;
+    }
+
+    // guojinghua@lexmount: toolkit for copy & paste across remote browser
+    if (document.activeElement === this.canvasElement) {
+      if (event.type === 'keydown' && !event.repeat) {
+        if ((event.ctrlKey || event.metaKey) && !event.altKey && !event.shiftKey) {
+          switch(event.key.toLowerCase()) {
+            case 'c':
+              await this.copyRemoteSelectionToClipboard();
+              break;
+            case 'v':
+              if (await this.pasteClipboardTextToRemote()) {
+                event.consume();
+                this.canvasElement.focus();
+                return;
+              }
+              break;
+          }
+        }
+      }
     }
 
     const shortcutKey = UI.KeyboardShortcut.KeyboardShortcut.makeKeyFromEvent(event);
@@ -347,6 +368,51 @@ export class ScreencastView extends UI.Widget.VBox implements SDK.OverlayModel.H
     }
     event.consume();
     this.canvasElement.focus();
+  }
+
+  // guojinghua@lexmount: function for copying text from remote browser
+  private async copyRemoteSelectionToClipboard(): Promise<boolean> {
+    const expression = `(() => {
+      const activeElement = (() => {
+        let element = document.activeElement;
+        while (element && element.shadowRoot && element.shadowRoot.activeElement) {
+          element = element.shadowRoot.activeElement;
+        }
+        return element;
+      })();
+      if (activeElement) {
+        const tagName = activeElement.tagName ? activeElement.tagName.toLowerCase() : '';
+        const type = activeElement.type ? activeElement.type.toLowerCase() : '';
+        const hasTextSelection = (tagName === 'textarea' || tagName === 'input') && type !== 'password' &&
+            typeof activeElement.selectionStart === 'number' && typeof activeElement.selectionEnd === 'number';
+        if (hasTextSelection && activeElement.selectionStart !== activeElement.selectionEnd) {
+          return activeElement.value.slice(activeElement.selectionStart, activeElement.selectionEnd);
+        }
+      }
+      const selection = window.getSelection ? window.getSelection() : null;
+      return selection ? selection.toString() : '';
+    })()`;
+    const response = await this.screenCaptureModel.target().runtimeAgent().invoke_evaluate({
+      expression,
+      returnByValue: true,
+      silent: true,
+    });
+    if (response.result && response.result.value) {
+      await navigator.clipboard.writeText(response.result.value);
+      return true;
+    }
+    return false;
+  }
+
+  // guojinghua@lexmount: function for pasting text to remote browser
+  private async pasteClipboardTextToRemote(): Promise<boolean> {
+    const text = await navigator.clipboard.readText();
+    if (!text) {
+      return false;
+    }
+
+    await this.inputModel?.emitText(text);
+    return true;
   }
 
   private handleBlurEvent(): void {

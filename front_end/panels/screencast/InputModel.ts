@@ -62,6 +62,11 @@ export class InputModel extends SDK.SDKModel.SDKModel<void> {
     });
   }
 
+  // guojinghua@lexmount: add interface for inserting text to page
+  emitText(text: string): void {
+    void this.inputAgent.invoke_insertText({text});
+  }
+
   emitMouseEvent(event: MouseEvent, offsetTop: number, zoom: number): void {
     if (!(event.type in MOUSE_EVENT_TYPES)) {
       return;
