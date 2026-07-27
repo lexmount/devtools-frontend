@@ -744,11 +744,17 @@ export class ScreencastView extends UI.Widget.VBox implements SDK.OverlayModel.H
     UI.ARIAUtils.setLabel(this.touchInputToggle, i18nString(UIStrings.touchInput));
 
     // guojinghua@lexmount: add screencast toggle button
-    this.inspectorToggle = this.navigationBar.createChild('button');
-    this.inspectorToggleIcon = this.inspectorToggle.appendChild(IconButton.Icon.create('global'));
-    // TODO(guojinghua): i18n
-    UI.ARIAUtils.setLabel(this.inspectorToggle, 'Toggle inspector view');
-    this.inspectorToggle.addEventListener('click', this.#toggleInspectorView.bind(this), false);
+    const lexmountDevtoolsParams = new URLSearchParams(window.location.search || '');
+    const lexmountDevtoolsModeEnabled = lexmountDevtoolsParams.get('isdevtools') === 'true' ||
+        lexmountDevtoolsParams.get('enable_devtools_mode') === 'true';
+    if (lexmountDevtoolsModeEnabled) {
+      // guojinghua@lexmount: add screencast toggle button
+      this.inspectorToggle = this.navigationBar.createChild('button');
+      this.inspectorToggleIcon = this.inspectorToggle.appendChild(IconButton.Icon.create('global'));
+      // TODO(guojinghua): i18n
+      UI.ARIAUtils.setLabel(this.inspectorToggle, 'Toggle inspector view');
+      this.inspectorToggle.addEventListener('click', this.#toggleInspectorView.bind(this), false);
+    }
 
     this.navigationProgressBar = new ProgressTracker(
         this.resourceTreeModel, this.networkManager, this.navigationBar.createChild('div', 'progress'));
