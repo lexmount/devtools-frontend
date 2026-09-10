@@ -235,13 +235,12 @@ export class ScreencastView extends UI.Widget.VBox implements SDK.OverlayModel.H
           dimensionsCSS.width / this.imageElement.naturalWidth,
           dimensionsCSS.height / (this.imageElement.naturalWidth * deviceSizeRatio));
       this.viewportElement.classList.remove('hidden');
-      const bordersSize = BORDERS_SIZE;
       if (this.imageZoom < 1.01 / window.devicePixelRatio) {
         this.imageZoom = 1 / window.devicePixelRatio;
       }
       this.screenZoom = this.imageElement.naturalWidth * this.imageZoom / metadata.deviceWidth;
-      this.viewportElement.style.width = metadata.deviceWidth * this.screenZoom + bordersSize + 'px';
-      this.viewportElement.style.height = metadata.deviceHeight * this.screenZoom + bordersSize + 'px';
+      this.viewportElement.style.width = metadata.deviceWidth * this.screenZoom + 'px';
+      this.viewportElement.style.height = metadata.deviceHeight * this.screenZoom + 'px';
 
       const data = this.highlightNode ? {node: this.highlightNode, selectorList: undefined} : {clear: true};
       void this.updateHighlightInOverlayAndRepaint(data, this.highlightConfig);
@@ -678,10 +677,8 @@ export class ScreencastView extends UI.Widget.VBox implements SDK.OverlayModel.H
   }
 
   private viewportDimensions(): {width: number, height: number} {
-    const gutterSize = 30;
-    const bordersSize = BORDERS_SIZE;
-    const width = this.element.offsetWidth - bordersSize - gutterSize;
-    const height = this.element.offsetHeight - bordersSize - gutterSize - NAVBAR_HEIGHT;
+    const width = this.element.offsetWidth;
+    const height = this.element.offsetHeight - NAVBAR_HEIGHT;
     return {width, height};
   }
 
@@ -871,7 +868,6 @@ export class ScreencastView extends UI.Widget.VBox implements SDK.OverlayModel.H
   }
 }
 
-export const BORDERS_SIZE = 44;
 export const NAVBAR_HEIGHT = 29;
 export const HTTP_REGEX = /^http:\/\/(.+)/;
 export const SCHEME_REGEX = /^(https?|about|chrome):/;
