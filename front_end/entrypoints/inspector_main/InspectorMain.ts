@@ -14,6 +14,7 @@ import * as Security from '../../panels/security/security.js';
 import * as Components from '../../ui/legacy/components/utils/utils.js';
 import * as UI from '../../ui/legacy/legacy.js';
 
+import {InspectorReconnect} from './InspectorReconnect.js';
 import nodeIconStyles from './nodeIcon.css.js';
 
 const UIStrings = {
@@ -60,6 +61,14 @@ export class InspectorMainImpl implements Common.Runnable.Runnable {
 
   async run(): Promise<void> {
     let firstCall = true;
+    const ws = Root.Runtime.Runtime.queryParam('ws');
+    const wss = Root.Runtime.Runtime.queryParam('wss');
+    const reconnect = ws || wss ?
+        new InspectorReconnect(ws ? `ws://${ws}` : `wss://${wss}`, () => window.location.reload()) :
+        null;
+    if (reconnect) {
+      window.addEventListener('pagehide', () => reconnect.stop(), {once: true});
+    }
     await SDK.Connections.initMainConnection(async () => {
       const type = Root.Runtime.Runtime.queryParam('v8only') ?
           SDK.Target.Type.NODE :
@@ -108,7 +117,10 @@ export class InspectorMainImpl implements Common.Runnable.Runnable {
       if (type !== SDK.Target.Type.TAB) {
         void target.runtimeAgent().invoke_runIfWaitingForDebugger();
       }
-    }, Components.TargetDetachedDialog.TargetDetachedDialog.connectionLost);
+    }, message => {
+      Components.TargetDetachedDialog.TargetDetachedDialog.connectionLost(message);
+      reconnect?.schedule();
+    });
 
     new SourcesPanelIndicator();
     new BackendSettingsSync();

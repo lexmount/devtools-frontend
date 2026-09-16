@@ -19,6 +19,7 @@ generate_css("css_files") {
 devtools_module("inspector_main") {
   sources = [
     "InspectorMain.ts",
+    "InspectorReconnect.ts",
     "OutermostTargetSelector.ts",
     "RenderingOptions.ts",
   ]
@@ -78,6 +79,7 @@ ts_library("unittests") {
 
   sources = [
     "InspectorMain.test.ts",
+    "InspectorReconnect.test.ts",
     "OutermostTargetSelector.test.ts",
   ]
 
