@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 import {assert} from 'chai';
-import sinon from 'sinon';
+import * as sinon from 'sinon';
 
 // Keep the retry controller testable without initializing the entire DevTools UI.
 // eslint-disable-next-line rulesdir/es-modules-import
