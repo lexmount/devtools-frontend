@@ -14,6 +14,7 @@ import {
 import {MockProtocolBackend} from '../../testing/MockScopeChain.js';
 import * as Common from '../common/common.js';
 import * as Platform from '../platform/platform.js';
+import * as Root from '../root/root.js';
 
 import * as SDK from './sdk.js';
 
@@ -22,6 +23,55 @@ const SCRIPT_ID_ONE = '1' as Protocol.Runtime.ScriptId;
 const SCRIPT_ID_TWO = '2' as Protocol.Runtime.ScriptId;
 
 describeWithMockConnection('DebuggerModel', () => {
+  describe('Playground debugger policy', () => {
+    it('keeps page and worker debuggers disabled through resumption and ID synchronization', async () => {
+      sinon.stub(Root.Runtime.Runtime, 'queryParam').callThrough().withArgs('enable_devtools_mode').returns('false');
+      const enable = sinon.stub().returns({debuggerId: 'debugger-id'});
+      const ready = sinon.spy();
+      setMockConnectionResponseHandler('Debugger.enable', enable);
+      const page = createTarget();
+      const worker = createTarget({type: SDK.Target.Type.Worker, parentTarget: page});
+
+      for (const target of [page, worker]) {
+        const model = target.model(SDK.DebuggerModel.DebuggerModel);
+        assert.exists(model);
+        model.addEventListener(SDK.DebuggerModel.Events.DebuggerIsReadyToPause, ready);
+        await model.suspendModel();
+        await model.resumeModel();
+        assert.isNull(await model.syncDebuggerId());
+        assert.isFalse(model.debuggerEnabled());
+        assert.isFalse(model.isReadyToPause());
+        assert.exists(target.model(SDK.RuntimeModel.RuntimeModel));
+      }
+
+      // A freshly created model also represents a reconnected frontend/new tab.
+      const reconnected = createTarget().model(SDK.DebuggerModel.DebuggerModel);
+      assert.isFalse(reconnected?.debuggerEnabled());
+      sinon.assert.notCalled(enable);
+      sinon.assert.notCalled(ready);
+    });
+
+    for (const mode of [null, 'true']) {
+      it(`retains debugger initialization and resumption with mode ${mode}`, async () => {
+        sinon.stub(Root.Runtime.Runtime, 'queryParam').callThrough().withArgs('enable_devtools_mode').returns(mode);
+        const enable = sinon.stub().returns({debuggerId: 'debugger-id'});
+        setMockConnectionResponseHandler('Debugger.enable', enable);
+        setMockConnectionResponseHandler('Debugger.disable', () => ({}));
+        setMockConnectionResponseHandler('Debugger.setAsyncCallStackDepth', () => ({}));
+        const model = createTarget().model(SDK.DebuggerModel.DebuggerModel);
+        assert.exists(model);
+        await model.syncDebuggerId();
+        assert.isTrue(model.debuggerEnabled());
+        assert.isTrue(model.isReadyToPause());
+        await model.suspendModel();
+        assert.isFalse(model.debuggerEnabled());
+        await model.resumeModel();
+        assert.isTrue(model.isReadyToPause());
+        sinon.assert.callCount(enable, 3);
+      });
+    }
+  });
+
   describe('breakpoint activation', () => {
     beforeEach(() => {
       // Dummy handlers for unblocking target suspension.

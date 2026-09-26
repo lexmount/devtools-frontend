@@ -283,7 +283,10 @@ export class DebuggerModel extends SDKModel<EventTypes> {
   }
 
   private async enableDebugger(): Promise<void> {
-    if (this.#debuggerEnabled) {
+    // Playground only needs Runtime/DOM/Page capabilities. Do not attach the
+    // debugger: disabling breakpoints after enabling it can lose its effect
+    // across navigation and let a page's anti-debugging statements pause it.
+    if (this.#debuggerEnabled || Root.Runtime.Runtime.queryParam('enable_devtools_mode') === 'false') {
       return;
     }
     this.#debuggerEnabled = true;
@@ -309,7 +312,10 @@ export class DebuggerModel extends SDKModel<EventTypes> {
     this.registerDebugger(enableResult);
   }
 
-  async syncDebuggerId(): Promise<Protocol.Debugger.EnableResponse> {
+  async syncDebuggerId(): Promise<Protocol.Debugger.EnableResponse|null> {
+    if (!this.#debuggerEnabled) {
+      return null;
+    }
     const isRemoteFrontend = Root.Runtime.Runtime.queryParam('remoteFrontend') || Root.Runtime.Runtime.queryParam('ws');
     const maxScriptsCacheSize = isRemoteFrontend ? 10e6 : 100e6;
     const enablePromise = this.agent.invoke_enable({maxScriptsCacheSize});

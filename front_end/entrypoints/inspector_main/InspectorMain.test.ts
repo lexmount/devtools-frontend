@@ -244,6 +244,27 @@ describeWithMockConnection('InspectorMainImpl', () => {
       Root.Runtime.Runtime.setQueryParamForTesting('panel', '');
     });
 
+    it('does not wait for a disabled Playground debugger even with panel=sources', async () => {
+      const queryParam = sinon.stub(Root.Runtime.Runtime, 'queryParam').callThrough();
+      queryParam.withArgs('panel').returns('sources');
+      queryParam.withArgs('enable_devtools_mode').returns('false');
+      const waitForDebugger = sinon.spy();
+      const debuggerEnable = sinon.spy();
+      const debuggerPause = sinon.spy();
+      const runIfWaitingForDebugger = sinon.spy();
+      setMockConnectionResponseHandler('Page.waitForDebugger', waitForDebugger);
+      setMockConnectionResponseHandler('Debugger.enable', debuggerEnable);
+      setMockConnectionResponseHandler('Debugger.pause', debuggerPause);
+      setMockConnectionResponseHandler('Runtime.runIfWaitingForDebugger', runIfWaitingForDebugger);
+
+      await InspectorMain.InspectorMain.InspectorMainImpl.instance({forceNew: true}).run();
+
+      sinon.assert.notCalled(waitForDebugger);
+      sinon.assert.notCalled(debuggerEnable);
+      sinon.assert.notCalled(debuggerPause);
+      sinon.assert.calledOnce(runIfWaitingForDebugger);
+    });
+
     it('wait for Debugger.enable before calling Debugger.pause', async () => {
       const inspectorMain = InspectorMain.InspectorMain.InspectorMainImpl.instance({forceNew: true});
       Root.Runtime.Runtime.setQueryParamForTesting('panel', 'sources');

@@ -75,7 +75,8 @@ export class InspectorMainImpl implements Common.Runnable.Runnable {
           (Root.Runtime.Runtime.queryParam('targetType') === 'tab' ? SDK.Target.Type.TAB : SDK.Target.Type.FRAME);
       // TODO(crbug.com/1348385): support waiting for debugger with tab target.
       const waitForDebuggerInPage =
-          type === SDK.Target.Type.FRAME && Root.Runtime.Runtime.queryParam('panel') === 'sources';
+          type === SDK.Target.Type.FRAME && Root.Runtime.Runtime.queryParam('panel') === 'sources' &&
+          Root.Runtime.Runtime.queryParam('enable_devtools_mode') !== 'false';
       const name = type === SDK.Target.Type.FRAME ? i18nString(UIStrings.main) : i18nString(UIStrings.tab);
       const target = SDK.TargetManager.TargetManager.instance().createTarget(
           'main', name, type, null, undefined, waitForDebuggerInPage);
