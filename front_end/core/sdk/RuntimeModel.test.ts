@@ -8,12 +8,92 @@ import {
 } from '../../testing/EnvironmentHelpers.js';
 import {
   describeWithMockConnection,
+  setMockConnectionResponseHandler,
 } from '../../testing/MockConnection.js';
 import * as Platform from '../platform/platform.js';
 
 import * as SDK from './sdk.js';
 
 const {urlString} = Platform.DevToolsPath;
+
+describeWithMockConnection('RuntimeModel subscriptions', () => {
+  it('enables Runtime events for a normal inspector', () => {
+    const enable = sinon.stub().returns({});
+    setMockConnectionResponseHandler('Runtime.enable', enable);
+
+    createTarget();
+
+    sinon.assert.calledOnce(enable);
+  });
+
+  it('defers subscriptions for existing and subsequently attached targets', () => {
+    const enable = sinon.stub().returns({});
+    setMockConnectionResponseHandler('Runtime.enable', enable);
+    SDK.RuntimeModel.RuntimeModel.setRuntimeEventsEnabled(false);
+    const target = createTarget();
+    createTarget({parentTarget: target});
+    createTarget({parentTarget: target, type: SDK.Target.Type.Worker});
+    sinon.assert.notCalled(enable);
+
+    SDK.RuntimeModel.RuntimeModel.setRuntimeEventsEnabled(true);
+    sinon.assert.calledThrice(enable);
+
+    // Reapplying the policy must not send duplicate enable commands.
+    SDK.RuntimeModel.RuntimeModel.setRuntimeEventsEnabled(true);
+    sinon.assert.calledThrice(enable);
+    createTarget();
+    sinon.assert.callCount(enable, 4);
+  });
+
+  it('clears execution contexts and ignores pending events when subscriptions are disabled', () => {
+    const disable = sinon.stub().returns({});
+    setMockConnectionResponseHandler('Runtime.disable', disable);
+    const target = createTarget();
+    const model = target.model(SDK.RuntimeModel.RuntimeModel);
+    assert.exists(model);
+    const context = {
+      id: 42 as Protocol.Runtime.ExecutionContextId,
+      uniqueId: 'context-42',
+      name: 'main',
+      origin: 'https://example.com',
+    };
+    model.executionContextCreated(context);
+    assert.lengthOf(model.executionContexts(), 1);
+
+    SDK.RuntimeModel.RuntimeModel.setRuntimeEventsEnabled(false);
+    sinon.assert.calledOnce(disable);
+    assert.isEmpty(model.executionContexts());
+    model.executionContextCreated(context);
+    assert.isEmpty(model.executionContexts());
+
+    SDK.RuntimeModel.RuntimeModel.setRuntimeEventsEnabled(true);
+    model.executionContextCreated(context);
+    assert.lengthOf(model.executionContexts(), 1);
+  });
+
+  it('keeps replacement targets unsubscribed while viewing', () => {
+    const enable = sinon.stub().returns({});
+    setMockConnectionResponseHandler('Runtime.enable', enable);
+    SDK.RuntimeModel.RuntimeModel.setRuntimeEventsEnabled(false);
+    createTarget({id: 'original' as Protocol.Target.TargetID});
+    createTarget({id: 'replacement' as Protocol.Target.TargetID});
+
+    sinon.assert.notCalled(enable);
+  });
+
+  it('removes the policy listener when a model is disposed', () => {
+    const enable = sinon.stub().returns({});
+    setMockConnectionResponseHandler('Runtime.enable', enable);
+    SDK.RuntimeModel.RuntimeModel.setRuntimeEventsEnabled(false);
+    const model = createTarget().model(SDK.RuntimeModel.RuntimeModel);
+    assert.exists(model);
+    model.dispose();
+
+    SDK.RuntimeModel.RuntimeModel.setRuntimeEventsEnabled(true);
+
+    sinon.assert.notCalled(enable);
+  });
+});
 
 describeWithMockConnection('ExecutionContext', () => {
   function createExecutionContext(target: SDK.Target.Target, name?: string, isDefault?: boolean) {

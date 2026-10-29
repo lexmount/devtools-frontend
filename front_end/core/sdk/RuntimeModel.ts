@@ -53,6 +53,8 @@ import {Capability, type Target, Type} from './Target.js';
 
 export class RuntimeModel extends SDKModel<EventTypes> {
   readonly agent: ProtocolProxyApi.RuntimeApi;
+  readonly #runtimeEventsSetting: Common.Settings.Setting<boolean>;
+  #runtimeEventsEnabled = false;
   readonly #executionContextById = new Map<number, ExecutionContext>();
   #executionContextComparator: (arg0: ExecutionContext, arg1: ExecutionContext) => number = ExecutionContext.comparator;
   constructor(target: Target) {
@@ -60,7 +62,9 @@ export class RuntimeModel extends SDKModel<EventTypes> {
 
     this.agent = target.runtimeAgent();
     this.target().registerRuntimeDispatcher(new RuntimeDispatcher(this));
-    void this.agent.invoke_enable();
+    this.#runtimeEventsSetting = RuntimeModel.runtimeEventsSetting();
+    this.#runtimeEventsSetting.addChangeListener(this.runtimeEventsSettingChanged, this);
+    this.updateRuntimeEvents(this.#runtimeEventsSetting.get());
 
     if (Common.Settings.Settings.instance().moduleSetting('custom-formatters').get()) {
       void this.agent.invoke_setCustomObjectFormatterEnabled({enabled: true});
@@ -69,6 +73,36 @@ export class RuntimeModel extends SDKModel<EventTypes> {
     Common.Settings.Settings.instance()
         .moduleSetting('custom-formatters')
         .addChangeListener(this.customFormattersStateChanged.bind(this));
+  }
+
+  private static runtimeEventsSetting(): Common.Settings.Setting<boolean> {
+    return Common.Settings.Settings.instance().createSetting(
+        'runtime-events-enabled', true, Common.Settings.SettingStorageType.SESSION);
+  }
+
+  static setRuntimeEventsEnabled(enabled: boolean): void {
+    RuntimeModel.runtimeEventsSetting().set(enabled);
+  }
+
+  private runtimeEventsSettingChanged({data: enabled}: Common.EventTarget.EventTargetEvent<boolean>): void {
+    this.updateRuntimeEvents(enabled);
+  }
+
+  private updateRuntimeEvents(enabled: boolean): void {
+    if (this.#runtimeEventsEnabled === enabled) {
+      return;
+    }
+    this.#runtimeEventsEnabled = enabled;
+    if (enabled) {
+      void this.agent.invoke_enable();
+    } else {
+      void this.agent.invoke_disable();
+      this.executionContextsCleared();
+    }
+  }
+
+  override dispose(): void {
+    this.#runtimeEventsSetting.removeChangeListener(this.runtimeEventsSettingChanged, this);
   }
 
   static isSideEffectFailure(response: Protocol.Runtime.EvaluateResponse|EvaluationResult): boolean {
@@ -115,6 +149,9 @@ export class RuntimeModel extends SDKModel<EventTypes> {
   }
 
   executionContextCreated(context: Protocol.Runtime.ExecutionContextDescription): void {
+    if (!this.#runtimeEventsEnabled) {
+      return;
+    }
     const data = context.auxData || {isDefault: true};
     const executionContext = new ExecutionContext(
         this, context.id, context.uniqueId, context.name, context.origin as Platform.DevToolsPath.UrlString,

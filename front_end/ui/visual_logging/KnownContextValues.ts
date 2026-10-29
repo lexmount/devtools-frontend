@@ -3125,6 +3125,7 @@ export const knownContextValues = new Set([
   'rule-width',
   'rulers-enable',
   'run',
+  'runtime-events-enabled',
   'rx',
   'ry',
   'sab-details',

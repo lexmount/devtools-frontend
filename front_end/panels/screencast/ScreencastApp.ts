@@ -10,9 +10,6 @@ import * as UI from '../../ui/legacy/legacy.js';
 
 import {ScreencastView} from './ScreencastView.js';
 
-// @lexmount
-import {ShowMode} from '../../ui/legacy/SplitWidget.js';
-
 const UIStrings = {
   /**
    * @description Tooltip text that appears when hovering over largeicon phone button in Screencast App of the Remote Devices tab when toggling screencast
@@ -33,6 +30,9 @@ export class ScreencastApp implements Common.App.App,
   rootView?: UI.RootView.RootView;
   constructor() {
     this.enabledSetting = Common.Settings.Settings.instance().createSetting('screencast-enabled', true);
+    // A hidden inspector must not subscribe to console events on the viewed page.
+    // Keep this policy in session settings so new targets and reconnects inherit it.
+    SDK.RuntimeModel.RuntimeModel.setRuntimeEventsEnabled(!this.enabledSetting.get());
     this.toggleButton = new UI.Toolbar.ToolbarToggle(i18nString(UIStrings.toggleScreencast), 'devices');
     this.toggleButton.setToggled(this.enabledSetting.get());
     this.toggleButton.setEnabled(false);
@@ -61,6 +61,8 @@ export class ScreencastApp implements Common.App.App,
     if (this.enabledSetting.get()) {
       this.rootSplitWidget.hideSidebar();
     }
+    this.rootSplitWidget.addEventListener(
+        UI.SplitWidget.Events.SHOW_MODE_CHANGED, this.onInspectorVisibilityChanged, this);
 
     this.rootSplitWidget.setSidebarWidget(UI.InspectorView.InspectorView.instance());
     UI.InspectorView.InspectorView.instance().setOwnerSplit(this.rootSplitWidget);
@@ -100,11 +102,16 @@ export class ScreencastApp implements Common.App.App,
     if (!this.rootSplitWidget) {
       return;
     }
-    if (this.rootSplitWidget.showMode() === ShowMode.ONLY_MAIN) {
+    if (this.rootSplitWidget.showMode() === UI.SplitWidget.ShowMode.ONLY_MAIN) {
       this.rootSplitWidget.showBoth();
     } else {
       this.rootSplitWidget.hideSidebar();
     }
+  }
+
+  private onInspectorVisibilityChanged(): void {
+    SDK.RuntimeModel.RuntimeModel.setRuntimeEventsEnabled(
+        this.rootSplitWidget?.showMode() !== UI.SplitWidget.ShowMode.ONLY_MAIN);
   }
 
   private toggleButtonClicked(): void {
@@ -121,12 +128,12 @@ export class ScreencastApp implements Common.App.App,
     this.toggleButton.setToggled(enabled);
     if (enabled) {
       // guojinghua@lexmount: do not show sidebar if it is hidden
-      if (this.rootSplitWidget.showMode() === ShowMode.ONLY_MAIN) {
+      if (this.rootSplitWidget.showMode() === UI.SplitWidget.ShowMode.ONLY_MAIN) {
         return;
       }
 
       this.rootSplitWidget.showBoth();
-    } else {
+    } else if (!this.enabledSetting.get()) {
       this.rootSplitWidget.hideMain();
     }
   }
